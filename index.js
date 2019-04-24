@@ -1,15 +1,8 @@
 const puppeteer = require("puppeteer");
 
-// step 1
-// pour une start url,
-// identifier les pages de type contact
-// push dans un tableau les pages à traiter
-// identifier la prochaine page index et boucler
-
 const START_URLS = [
   "https://www.eventseye.com/fairs/c0_salons_belgique.html"
 ];
-
 const FOLLOW_REGEX = /https:\/\/www.eventseye.com\/fairs\/f-[\w\d_.-]{2,}.html/;
 
 let navigateTo = [];
