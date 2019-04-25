@@ -3,7 +3,8 @@ const puppeteer = require("puppeteer");
 const START_URLS = [
   "https://www.eventseye.com/fairs/c0_salons_belgique.html"
 ];
-const FOLLOW_REGEX = /https:\/\/www.eventseye.com\/fairs\/f-[\w\d_.-]{2,}.html/;
+const FOLLOW_REGEX = /^https:\/\/www.eventseye.com\/fairs\/f-[\w\d_.-]{2,}.html$/;
+const NEXT_PAGE_REGEX =/^https:\/\/www\.eventseye\.com\/fairs\/c0_salons_belgique_[\d]+.html$/;
 
 let navigateTo = [];
 
@@ -12,27 +13,43 @@ const getRandomInt = (min, max) => {
 }
 
 const getAllUrl = async (browser, startUrl) => {
-  console.log(">getAllUrl: ", startUrl);
+  console.log(">startUrl: ", startUrl);
   const page = await browser.newPage();
+  let currentUrl = startUrl;
+
+
+  console.log(">", currentUrl);
   await page.waitFor(getRandomInt(100, 3000));
-  await page.goto(startUrl);
+  await page.goto(currentUrl);
   // Wait for the selector to appear in page
   await page.waitForSelector('body');
-  const links = await getAllUrlInPage(page);
-  // console.log(">gross count = ", links.length);
-  const linksFiltred = links.filter(link => link.match(FOLLOW_REGEX));
-  console.log(">filtred count = ", linksFiltred.length);
+  const links = await getLinksInPage(page);
+  const linksFiltred = await filterLinks(links);
+
+  currentUrl = await findNextPage(links);
+
+
   return linksFiltred;
 }
 
-const getAllUrlInPage = async (page) => {
-  const allLinks = await page.evaluate(() => {
+const getLinksInPage = async (page) => {
+  const links = await page.evaluate(() => {
     // debugger
-    const links = [...document.querySelectorAll("a")];
-    return links ? links.map(link => link.href) : [];
+    const a = [...document.querySelectorAll("a")];
+    return a ? a.map(link => link.href) : [];
   });
-  // console.log(grossLinks);
-  return allLinks;
+  console.log(">gross count = ", links ? links.length : 0);
+  return links;
+}
+
+const filterLinks = async (anchors) => {
+  const linksFiltred = anchors.filter(link => link.match(FOLLOW_REGEX));
+  console.log(">filtred count = ", linksFiltred ? linksFiltred.length : 0);
+  return linksFiltred;
+}
+
+const findNextPage = async (links) => {
+  return links.find(link => link.match(NEXT_PAGE_REGEX));
 }
 
 const scrap = async () => {
