@@ -8,13 +8,14 @@ const NEXT_PAGE_REGEX =/^https:\/\/www\.eventseye\.com\/fairs\/c0_salons_belgiqu
 
 let urlsToScrap = [];
 let urlsVisited = [];
+let dataCatched = [];
 
 const getRandomInt = (min, max) => {
   return Math.random() * (max - min) + min;
 }
 
 const getAllUrl = async (browser, startUrl) => {
-  console.log(">startUrl: ", startUrl);
+  console.log(">StartUrl: ", startUrl);
   const page = await browser.newPage();
   let currentUrl = startUrl;
   let links = [];
@@ -24,7 +25,6 @@ const getAllUrl = async (browser, startUrl) => {
     console.log(">currentUrl: ", currentUrl);
     await page.waitFor(getRandomInt(100, 3000));
     await page.goto(currentUrl);
-    // Wait for the selector to appear in page
     await page.waitForSelector('body');
     links = await getLinksInPage(page);
     linksFiltred.push(...await filterLinks(links));
@@ -40,7 +40,7 @@ const getLinksInPage = async (page) => {
   const links = await page.evaluate(() => {
     // debugger
     const a = [...document.querySelectorAll("a")];
-    return a ? a.map(link => link.href) : [];
+    return a ? a.map(link => link.href.trim()) : [];
   });
   console.log(">gross count = ", links ? links.length : 0);
   return links;
@@ -57,33 +57,68 @@ const findNextPage = async (links) => {
 }
 
 const getDatas = async (browser) => {
-  // const results = await Promise.all(
-  //   urlList.slice(0,5).map(url => getDataFromUrl(browser, url))
-  // );
-  // return results
+  const results = await Promise.all(
+    urlsToScrap.slice(0,5).map(url => {
+      if (shouldVisitUrl(url)) {
+        urlsVisited.push(url);
+        return scrapPage(browser, url);
+      }
+    })
+  );
+  return results
 }
 
-const shouldVisitUrl = async (url) => {
-
+const shouldVisitUrl = async (checkUrl) => {
+  // return true;
+  return !urlsVisited.find(url => url === checkUrl);
 }
 
-// const scrapPage = async () =>
+const scrapPage = async (browser, url) => {
+  const page = await browser.newPage();
+  await page.waitFor(getRandomInt(100, 3000));
+  await page.goto(url);
+  const resultSelector = "div.orgs div.body";
+  await page.waitForSelector(resultSelector);
+
+  const result = await page.evaluate(() => {
+    // debugger
+    const organizer = document.querySelector("body > div.orgs > div > div > div > div > a.orglink").innerText;
+    const phone = document.querySelector("body > div.orgs > div > div > div > div > div.ev-phone").innerText;
+    const email = document.querySelector("body > div.orgs > div > div > div > div > a.ev-mail").href;
+    const webSite = document.querySelector("body > div.orgs > div > div > div > div > a.ev-web").href;
+    const country = document.querySelector("body > div.orgs > div > div > div > div > strong").innerText;
+
+    return { organizer, country, phone, email, webSite };
+  });
+  page.close();
+  // console.log(result);
+  await dataCatched.push(result);
+}
+
+const setTestUrls = () => {
+  urlsToScrap.push(
+    "https://www.eventseye.com/fairs/f-salon-zen-topia-villers-la-ville-25967-0.html",
+    "https://www.eventseye.com/fairs/f-dempforest-22535-0.html");
+}
 
 const main = async () => {
   // const browser = await puppeter.launch();
   const browser = await puppeteer.launch({
     headless: false,
-    devtools: true // use devtools when launching Puppeteer
+    devtools: true
   });
   const rootUrl = START_URLS[0];
 
-  await getAllUrl(browser, rootUrl);
+  setTestUrls();
+  // await getAllUrl(browser, rootUrl);
+
   if(urlsToScrap.length) await getDatas(browser);
+  console.log(dataCatched);
 
   browser.close();
-  return urlsToScrap;
+  return urlsVisited.length;
 }
 
 main()
-  .then(results => console.log(">results: ", results))
-  .catch(err => console.log(`>error: ${err}`));
+  .then(res => console.log(`>END: ${res} urls scraped`))
+  .catch(err => console.log(`>ERROR: ${err}`));
