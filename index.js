@@ -1,4 +1,6 @@
 const puppeteer = require("puppeteer");
+const fastcsv = require('fast-csv');
+const fs = require('fs');
 
 const START_URLS = [
   "https://www.eventseye.com/fairs/c0_salons_belgique.html"
@@ -113,7 +115,14 @@ const main = async () => {
   // await getAllUrl(browser, rootUrl);
 
   if(urlsToScrap.length) await getDatas(browser);
-  console.log(dataCatched);
+  if(dataCatched)
+  {
+    console.log(dataCatched);
+    const ws = fs.createWriteStream("out.csv");
+    fastcsv
+      .write(dataCatched, { headers: true })
+      .pipe(ws);
+  }
 
   browser.close();
   return urlsVisited.length;
