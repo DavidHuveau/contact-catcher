@@ -2,21 +2,18 @@ const puppeteer = require("puppeteer");
 const fastcsv = require('fast-csv');
 const fs = require('fs');
 
-const START_URLS = [
-  "https://www.eventseye.com/fairs/c0_salons_belgique.html"
-];
+const START_URL = "https://www.eventseye.com/fairs/c0_salons_belgique.html";
 const FOLLOW_REGEX = /^https:\/\/www.eventseye.com\/fairs\/f-[\w\d_.-]{2,}.html$/;
 const NEXT_PAGE_REGEX =/^https:\/\/www\.eventseye\.com\/fairs\/c0_salons_belgique_[\d]+.html$/;
 
-const IS_TEST_MODE = true;
+const IS_TEST_MODE = false;
 const IS_LIMITED_RESULTS = false;
-const NUMBER_OF_LIMITED_RESULTS = 5;
-
 const IS_DELAY_BEFORE_URL_LOADING = true;
+
+const NUMBER_OF_LIMITED_RESULTS = 23;
 const MIN_DELAY_BEFORE_URL_LOADING = 100;
 const MAX_DELAY_BEFORE_URL_LOADING = 3000;
-
-const QUEUE_SIZE = 3;
+const QUEUE_SIZE = 10;
 
 let urlsToScrap = [];
 let urlsVisited = [];
@@ -69,7 +66,7 @@ const findNextPage = async (links) => {
 }
 
 const getContacts = async (browser) => {
-  const limit = IS_LIMITED_RESULTS ? NUMBER_OF_LIMITED_RESULTS : urlsToScrap.length - 1;
+  const limit = IS_LIMITED_RESULTS ? NUMBER_OF_LIMITED_RESULTS : urlsToScrap.length;
   const startData = urlsToScrap.slice(0,limit);
 
   let queue = [];
@@ -78,8 +75,7 @@ const getContacts = async (browser) => {
   for (let index = 0; index < Math.ceil(startData.length / QUEUE_SIZE); index++) {
     cursor = index * QUEUE_SIZE;
     queue = startData.slice(cursor, cursor + QUEUE_SIZE)
-    console.log(index, cursor, cursor + QUEUE_SIZE);
-    console.log(queue);
+    console.log(index, queue);
 
     const results = await Promise.all(
       queue.map(url => {
@@ -102,8 +98,6 @@ const scrapPage = async (browser, url) => {
   await page.goto(url);
   const resultSelector = "div.orgs div.body";
   await page.waitForSelector(resultSelector);
-  console.log(url);
-
 
   const result = await page.evaluate(() => {
     // debugger
@@ -129,17 +123,16 @@ const setTestUrls = () => {
 }
 
 const main = async () => {
-  // const browser = await puppeter.launch();
-  const browser = await puppeteer.launch({
-    headless: false,
-    devtools: true
-  });
-  const rootUrl = START_URLS[0];
+  const browser = await puppeteer.launch();
+  // const browser = await puppeteer.launch({
+  //   headless: false,
+  //   devtools: true
+  // });
 
   if (IS_TEST_MODE)
     setTestUrls();
   else
-    await getAllUrl(browser, rootUrl);
+    await getAllUrl(browser, START_URL);
 
   if(urlsToScrap.length) await getContacts(browser);
 
