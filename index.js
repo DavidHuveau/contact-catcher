@@ -2,9 +2,21 @@ const puppeteer = require("puppeteer");
 const fastcsv = require('fast-csv');
 const fs = require('fs');
 
-const START_URL = "https://www.eventseye.com/fairs/c0_salons_belgique.html";
+const START_URL = "https://www.eventseye.com/fairs/c0_salons_monaco.html";
 const FOLLOW_REGEX = /^https:\/\/www.eventseye.com\/fairs\/f-[\w\d_.-]{2,}.html$/;
-const NEXT_PAGE_REGEX =/^https:\/\/www\.eventseye\.com\/fairs\/c0_salons_belgique_[\d]+.html$/;
+const NEXT_PAGE_REGEX =/^https:\/\/www\.eventseye\.com\/fairs\/c0_salons_monaco_[\d]+.html$/;
+
+// const START_URL = "https://www.eventseye.com/fairs/c0_salons_luxembourg.html";
+// const FOLLOW_REGEX = /^https:\/\/www.eventseye.com\/fairs\/f-[\w\d_.-]{2,}.html$/;
+// const NEXT_PAGE_REGEX =/^https:\/\/www\.eventseye\.com\/fairs\/c0_salons_luxembourg_[\d]+.html$/;
+
+// const START_URL = "https://www.eventseye.com/fairs/c0_salons_suisse.html";
+// const FOLLOW_REGEX = /^https:\/\/www.eventseye.com\/fairs\/f-[\w\d_.-]{2,}.html$/;
+// const NEXT_PAGE_REGEX =/^https:\/\/www\.eventseye\.com\/fairs\/c0_salons_suisse_[\d]+.html$/;
+
+// const START_URL = "https://www.eventseye.com/fairs/c0_salons_belgique.html";
+// const FOLLOW_REGEX = /^https:\/\/www.eventseye.com\/fairs\/f-[\w\d_.-]{2,}.html$/;
+// const NEXT_PAGE_REGEX =/^https:\/\/www\.eventseye\.com\/fairs\/c0_salons_belgique_[\d]+.html$/;
 
 const IS_TEST_MODE = false;
 const IS_LIMITED_RESULTS = false;
