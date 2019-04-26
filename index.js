@@ -8,16 +8,24 @@ const START_URLS = [
 const FOLLOW_REGEX = /^https:\/\/www.eventseye.com\/fairs\/f-[\w\d_.-]{2,}.html$/;
 const NEXT_PAGE_REGEX =/^https:\/\/www\.eventseye\.com\/fairs\/c0_salons_belgique_[\d]+.html$/;
 
+const IS_LIMITED_RESULTS = true;
+const NUMBER_OF_LIMITED_RESULTS = 50;
+
+const IS_DELAY_BEFORE_URL_LOADING = true;
+const MIN_DELAY_BEFORE_URL_LOADING = 100;
+const MAX_DELAY_BEFORE_URL_LOADING = 3000;
+
 let urlsToScrap = [];
 let urlsVisited = [];
 let dataCatched = [];
 
-const getRandomInt = (min, max) => {
-  return Math.random() * (max - min) + min;
+const getRandomDelay = () => {
+  if (!IS_DELAY_BEFORE_URL_LOADING) return 0;
+  return Math.random() * (MAX_DELAY_BEFORE_URL_LOADING - MIN_DELAY_BEFORE_URL_LOADING) + MIN_DELAY_BEFORE_URL_LOADING;
 }
 
 const getAllUrl = async (browser, startUrl) => {
-  console.log(">StartUrl: ", startUrl);
+  console.log(">startUrl: ", startUrl);
   const page = await browser.newPage();
   let currentUrl = startUrl;
   let links = [];
@@ -25,7 +33,7 @@ const getAllUrl = async (browser, startUrl) => {
 
   while(currentUrl) {
     console.log(">currentUrl: ", currentUrl);
-    await page.waitFor(getRandomInt(100, 3000));
+    await page.waitFor(getRandomDelay());
     await page.goto(currentUrl);
     await page.waitForSelector('body');
     links = await getLinksInPage(page);
@@ -59,8 +67,10 @@ const findNextPage = async (links) => {
 }
 
 const getDatas = async (browser) => {
+  const limit = IS_LIMITED_RESULTS ? NUMBER_OF_LIMITED_RESULTS : urlsToScrap.length - 1;
+  
   const results = await Promise.all(
-    urlsToScrap.slice(0,5).map(url => {
+    urlsToScrap.slice(0,limit).map(url => {
       if (shouldVisitUrl(url)) {
         urlsVisited.push(url);
         return scrapPage(browser, url);
@@ -77,10 +87,12 @@ const shouldVisitUrl = async (checkUrl) => {
 
 const scrapPage = async (browser, url) => {
   const page = await browser.newPage();
-  await page.waitFor(getRandomInt(100, 3000));
+  await page.waitFor(getRandomDelay());
   await page.goto(url);
   const resultSelector = "div.orgs div.body";
   await page.waitForSelector(resultSelector);
+  console.log(url);
+
 
   const result = await page.evaluate(() => {
     // debugger
@@ -92,7 +104,7 @@ const scrapPage = async (browser, url) => {
 
     return { organizer, country, phone, email, webSite };
   });
-  page.close();
+  await page.close();
   // console.log(result);
   await dataCatched.push(result);
 }
@@ -100,7 +112,10 @@ const scrapPage = async (browser, url) => {
 const setTestUrls = () => {
   urlsToScrap.push(
     "https://www.eventseye.com/fairs/f-salon-zen-topia-villers-la-ville-25967-0.html",
-    "https://www.eventseye.com/fairs/f-dempforest-22535-0.html");
+    "https://www.eventseye.com/fairs/f-dempforest-22535-0.html",
+    "https://www.eventseye.com/fairs/f-estetika-11579-0.html",
+    "https://www.eventseye.com/fairs/f-realty-13478-0.html",
+    "https://www.eventseye.com/fairs/f-fedoba-6885-0.html")
 }
 
 const main = async () => {
@@ -117,7 +132,7 @@ const main = async () => {
   if(urlsToScrap.length) await getDatas(browser);
   if(dataCatched)
   {
-    console.log(dataCatched);
+    // console.log(dataCatched);
     const ws = fs.createWriteStream("out.csv");
     fastcsv
       .write(dataCatched, { headers: true })
@@ -125,9 +140,9 @@ const main = async () => {
   }
 
   browser.close();
-  return urlsVisited.length;
+  return `${urlsVisited.length} urls scraped`;
 }
 
 main()
-  .then(res => console.log(`>END: ${res} urls scraped`))
+  .then(summary => console.log(`>END: ${summary}`))
   .catch(err => console.log(`>ERROR: ${err}`));
