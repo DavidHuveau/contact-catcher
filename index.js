@@ -8,12 +8,15 @@ const START_URLS = [
 const FOLLOW_REGEX = /^https:\/\/www.eventseye.com\/fairs\/f-[\w\d_.-]{2,}.html$/;
 const NEXT_PAGE_REGEX =/^https:\/\/www\.eventseye\.com\/fairs\/c0_salons_belgique_[\d]+.html$/;
 
-const IS_LIMITED_RESULTS = true;
-const NUMBER_OF_LIMITED_RESULTS = 50;
+const IS_TEST_MODE = true;
+const IS_LIMITED_RESULTS = false;
+const NUMBER_OF_LIMITED_RESULTS = 5;
 
 const IS_DELAY_BEFORE_URL_LOADING = true;
 const MIN_DELAY_BEFORE_URL_LOADING = 100;
 const MAX_DELAY_BEFORE_URL_LOADING = 3000;
+
+const QUEUE_SIZE = 3;
 
 let urlsToScrap = [];
 let urlsVisited = [];
@@ -52,7 +55,6 @@ const getLinksInPage = async (page) => {
     const a = [...document.querySelectorAll("a")];
     return a ? a.map(link => link.href.trim()) : [];
   });
-  console.log(">gross count = ", links ? links.length : 0);
   return links;
 }
 
@@ -66,22 +68,31 @@ const findNextPage = async (links) => {
   return links.find(link => link.match(NEXT_PAGE_REGEX));
 }
 
-const getDatas = async (browser) => {
+const getContacts = async (browser) => {
   const limit = IS_LIMITED_RESULTS ? NUMBER_OF_LIMITED_RESULTS : urlsToScrap.length - 1;
-  
-  const results = await Promise.all(
-    urlsToScrap.slice(0,limit).map(url => {
-      if (shouldVisitUrl(url)) {
-        urlsVisited.push(url);
-        return scrapPage(browser, url);
-      }
-    })
-  );
-  return results
+  const startData = urlsToScrap.slice(0,limit);
+
+  let queue = [];
+  let cursor = 0;
+
+  for (let index = 0; index < Math.ceil(startData.length / QUEUE_SIZE); index++) {
+    cursor = index * QUEUE_SIZE;
+    queue = startData.slice(cursor, cursor + QUEUE_SIZE)
+    console.log(index, cursor, cursor + QUEUE_SIZE);
+    console.log(queue);
+
+    const results = await Promise.all(
+      queue.map(url => {
+        if (shouldVisitUrl(url)) {
+          urlsVisited.push(url);
+          return scrapPage(browser, url);
+        }
+      })
+    );
+  }
 }
 
 const shouldVisitUrl = async (checkUrl) => {
-  // return true;
   return !urlsVisited.find(url => url === checkUrl);
 }
 
@@ -105,7 +116,6 @@ const scrapPage = async (browser, url) => {
     return { organizer, country, phone, email, webSite };
   });
   await page.close();
-  // console.log(result);
   await dataCatched.push(result);
 }
 
@@ -126,13 +136,15 @@ const main = async () => {
   });
   const rootUrl = START_URLS[0];
 
-  setTestUrls();
-  // await getAllUrl(browser, rootUrl);
+  if (IS_TEST_MODE)
+    setTestUrls();
+  else
+    await getAllUrl(browser, rootUrl);
 
-  if(urlsToScrap.length) await getDatas(browser);
+  if(urlsToScrap.length) await getContacts(browser);
+
   if(dataCatched)
   {
-    // console.log(dataCatched);
     const ws = fs.createWriteStream("out.csv");
     fastcsv
       .write(dataCatched, { headers: true })
